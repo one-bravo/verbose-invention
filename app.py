@@ -23,16 +23,10 @@ limiter = Limiter(
 
 class LyricGenerator:
     def __init__(self, api_key: str):
-        try:
-            import httpx
-            self.client = anthropic.Anthropic(
-                api_key=api_key,
-                http_client=httpx.Client()
-            )
-        except Exception as e:
-            print(f"Error initializing Anthropic client: {e}")
-            raise
-
+        self.client = anthropic.Client(api_key=api_key)
+        self.styles = ["trap", "boom bap", "conscious", "melodic"]
+        self.themes = ["success", "struggle", "love", "street life", "motivation"]
+        
     def generate_prompt(self, style: str, theme: str, mood: str) -> str:
         return f"""Generate authentic rap lyrics in the style of {style} rap with a {theme} theme and {mood} mood. 
         The lyrics should be creative, include metaphors, and follow modern rap patterns. 
@@ -68,10 +62,10 @@ class LyricGenerator:
                     rhyme_dict[ending] = [word]
         return {k: v for k, v in rhyme_dict.items() if len(v) > 1}
     
-    async def generate_lyrics(self, style: str, theme: str, mood: str) -> Dict:
+    def generate_lyrics(self, style: str, theme: str, mood: str) -> Dict:
         prompt = self.generate_prompt(style, theme, mood)
         
-        response = await self.client.messages.create(
+        response = self.client.messages.create(
             model="claude-3-sonnet-20240229",
             max_tokens=1000,
             temperature=0.9,
@@ -108,7 +102,7 @@ def app_page():
     return render_template('app.html', ad_client_id=AD_CLIENT_ID)
 
 @app.route('/api/generate', methods=['POST'])
-async def generate():
+def generate():
     if generator is None:
         return jsonify({"error": "LyricGenerator not initialized"}), 500
 
@@ -118,7 +112,7 @@ async def generate():
     mood = data.get('mood', 'energetic')
     
     try:
-        result = await generator.generate_lyrics(style, theme, mood)
+        result = generator.generate_lyrics(style, theme, mood)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
