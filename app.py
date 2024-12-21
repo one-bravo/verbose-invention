@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, render_template, jsonify, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -24,10 +23,16 @@ limiter = Limiter(
 
 class LyricGenerator:
     def __init__(self, api_key: str):
-        self.client = anthropic.Anthropic(api_key=api_key)
-        self.styles = ["trap", "boom bap", "conscious", "melodic"]
-        self.themes = ["success", "struggle", "love", "street life", "motivation"]
-        
+        try:
+            import httpx
+            self.client = anthropic.Anthropic(
+                api_key=api_key,
+                http_client=httpx.Client()
+            )
+        except Exception as e:
+            print(f"Error initializing Anthropic client: {e}")
+            raise
+
     def generate_prompt(self, style: str, theme: str, mood: str) -> str:
         return f"""Generate authentic rap lyrics in the style of {style} rap with a {theme} theme and {mood} mood. 
         The lyrics should be creative, include metaphors, and follow modern rap patterns. 
@@ -87,7 +92,12 @@ class LyricGenerator:
             "mood": mood
         }
 
-generator = LyricGenerator(ANTHROPIC_API_KEY)
+# Initialize the generator
+try:
+    generator = LyricGenerator(ANTHROPIC_API_KEY)
+except Exception as e:
+    print(f"Failed to initialize LyricGenerator: {e}")
+    generator = None
 
 @app.route('/')
 def index():
@@ -99,6 +109,9 @@ def app_page():
 
 @app.route('/api/generate', methods=['POST'])
 async def generate():
+    if generator is None:
+        return jsonify({"error": "LyricGenerator not initialized"}), 500
+
     data = request.json
     style = data.get('style', 'trap')
     theme = data.get('theme', 'success')
